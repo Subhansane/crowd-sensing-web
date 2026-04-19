@@ -1,0 +1,49 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "username": "admin",
+      "email": "admin@crowdsense.com",
+      "password": "Admin@123",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "lastLogin": "2025-12-31T13:19:41.192Z",
+      "role": "user"
+    },
+    {
+      "id": "2",
+      "username": "john_doe",
+      "email": "john.doe@example.com",
+      "password": "John@1234",
+      "createdAt": "2024-01-02T00:00:00.000Z",
+      "lastLogin": null,
+      "role": "user"
+    },
+    {
+      "id": "3",
+      "username": "jane_smith",
+      "email": "jane.smith@example.com",
+      "password": "Jane@1234",
+      "createdAt": "2024-01-03T00:00:00.000Z",
+      "lastLogin": null,
+      "role": "user"
+    },
+    {
+      "id": "4",
+      "username": "test_user",
+      "email": "test@crowdsense.com",
+      "password": "Test@1234",
+      "createdAt": "2024-01-04T00:00:00.000Z",
+      "lastLogin": null,
+      "role": "user"
+    },
+    {
+      "id": "5",
+      "username": "demo_user",
+      "email": "demo@crowdsense.com",
+      "password": "Demo@1234",
+      "createdAt": "2024-01-05T00:00:00.000Z",
+      "lastLogin": null,
+      "role": "user"
+    }
+  ]
+}
