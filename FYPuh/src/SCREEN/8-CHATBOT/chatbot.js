@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import "./chatbot.css";
 import logo from "../images/logo1.png";  
 import { FaPlus, FaHistory, FaCalendarAlt, FaTrash, FaMapMarkerAlt, FaBars, FaTimes } from "react-icons/fa";
+import { subscribeToAreaDensity, subscribeToAllReadings } from "../../utils/firebaseService";
+import { processMessage } from "../../utils/crowdDataService";
 
 export default function CrowdSenseSearch() {
   const [text, setText] = useState("");
@@ -12,12 +14,24 @@ export default function CrowdSenseSearch() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [areas, setAreas] = useState([]);
+  const [readings, setReadings] = useState([]);
   
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     const savedChats = JSON.parse(localStorage.getItem('crowdsense_chats') || '[]');
     setPastChats(savedChats);
+  }, []);
+
+  // Subscribe to Firebase area and readings data for the NLP engine
+  useEffect(() => {
+    const unsubAreas = subscribeToAreaDensity(setAreas);
+    const unsubReadings = subscribeToAllReadings(setReadings);
+    return () => {
+      unsubAreas();
+      unsubReadings();
+    };
   }, []);
 
   useEffect(() => {
@@ -48,42 +62,19 @@ export default function CrowdSenseSearch() {
     }
   };
 
-  // Check server connection on component mount
+  // Show a welcome message on first load
   useEffect(() => {
-    const checkServer = async () => {
-      try {
-        const response = await fetch("http://127.0.0.1:5000/test");
-        const data = await response.json();
-        console.log("Server status:", data);
-        
-        // Add a system message if server is not ready
-        if (!data.data_file) {
-          const warningMessage = {
-            id: Date.now(),
-            text: "Warning: Data file not found on server. Please check if the CSV file exists at the specified path.",
-            sender: "bot",
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          };
-          setMessages([warningMessage]);
-          setIsStarted(true);
-        }
-      } catch (error) {
-        console.error("Server connection error:", error);
-        const errorMessage = {
-          id: Date.now(),
-          text: "Cannot connect to the server. Please make sure the Flask server is running on http://127.0.0.1:5000",
-          sender: "bot",
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setMessages([errorMessage]);
-        setIsStarted(true);
-      }
+    const welcomeMessage = {
+      id: Date.now(),
+      text: "👋 Welcome to CrowdSense! I can answer questions about crowd density, peak hours, and user counts. Type **help** to see what I can do!",
+      sender: "bot",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    
-    checkServer();
+    setMessages([welcomeMessage]);
+    setIsStarted(true);
   }, []);
 
-  // FIXED CHATBOT FUNCTION with better error handling
+  // Process message using local NLP engine backed by Firebase data
   const sendMessage = async () => {
     if (text.trim() === "") return;
 
@@ -100,59 +91,20 @@ export default function CrowdSenseSearch() {
     setText("");
     setIsLoading(true);
 
-    try {
-      console.log("Sending message to server:", userInput);
-      
-      const res = await fetch("http://127.0.0.1:5000/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify({ message: userInput }),
-        mode: 'cors' // Explicitly set CORS mode
-      });
+    // Small delay to simulate thinking
+    await new Promise((resolve) => setTimeout(resolve, 400));
 
-      console.log("Response status:", res.status);
-      
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
+    const reply = processMessage(userInput, areas, readings, messages);
 
-      const data = await res.json();
-      console.log("Response data:", data);
+    const botMessage = {
+      id: Date.now() + 1,
+      text: reply,
+      sender: "bot",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
 
-      const botMessage = {
-        id: Date.now() + 1,
-        text: data.reply || "No response from server",
-        sender: "bot",
-        mapsLink: data.mapLink,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-
-      setMessages(prev => [...prev, botMessage]);
-
-    } catch (error) {
-      console.error("Fetch error:", error);
-      
-      let errorText = "Error connecting to server.";
-      if (error.message.includes('Failed to fetch')) {
-        errorText = "Cannot reach the server. Please make sure the Flask server is running on http://127.0.0.1:5000";
-      } else if (error.message.includes('HTTP error')) {
-        errorText = `Server error: ${error.message}`;
-      }
-
-      const botMessage = {
-        id: Date.now() + 1,
-        text: errorText,
-        sender: "bot",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-
-      setMessages(prev => [...prev, botMessage]);
-    } finally {
-      setIsLoading(false);
-    }
+    setMessages(prev => [...prev, botMessage]);
+    setIsLoading(false);
 
     if (!isStarted) {
       setIsStarted(true);
@@ -306,7 +258,7 @@ export default function CrowdSenseSearch() {
                 <img src={logo} className="chat-logo" alt="CrowdSense Logo" />
                 <div className="starting-message">
                   <p>Welcome to CrowdSense! Ask about crowd density at any location.</p>
-                  <p>Example: "How crowded is Rawalpindi right now?"</p>
+                  <p>Example: "How crowded is Raja Bazaar right now?"</p>
                 </div>
               </>
             )}

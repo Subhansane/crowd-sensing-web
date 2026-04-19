@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import "./dash.css";
-import { FaFileExport, FaCalendar, FaTimes, FaDownload } from "react-icons/fa";
+import { FaFileExport, FaCalendar, FaTimes, FaDownload, FaWifi } from "react-icons/fa";
+import { subscribeToAreaDensity, DEFAULT_AREAS } from "../../utils/firebaseService";
 
 // This helper function allows the buttons to move the map
 function RecenterMap({ center, zoom }) {
@@ -13,16 +14,12 @@ function RecenterMap({ center, zoom }) {
   return null;
 }
 
-const RAWPINDI_DATA = [
-  { id: 1, name: "Raja Bazaar", lat: 33.5958, lng: 73.0489, info: "High Traffic" },
-  { id: 2, name: "Saddar", lat: 33.6000, lng: 73.0550, info: "Commercial Hub" },
-  { id: 3, name: "Sixth Road", lat: 33.6351, lng: 73.0764, info: "Educational Zone" },
-  { id: 4, name: "Ayub Park", lat: 33.5689, lng: 73.1047, info: "Recreational" },
-];
-
 function Dash() {
   const [mapConfig, setMapConfig] = useState({ center: [33.5958, 73.0489], zoom: 13 });
-  const [locations, setLocations] = useState(RAWPINDI_DATA.map(l => ({ ...l, density: 40 })));
+  const [locations, setLocations] = useState(
+    DEFAULT_AREAS.map((l) => ({ ...l, density: 40, userCount: 0 }))
+  );
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [exportForm, setExportForm] = useState({
     startDate: new Date().toISOString().split('T')[0],
@@ -55,20 +52,46 @@ function Dash() {
           mapElement.style.height = 'calc(100vh - 200px)';
         }
       }, 500);
+
     }
 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Simulate Live Data changing colors
+  // Subscribe to Firebase real-time density data
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLocations(prev => prev.map(loc => ({
-        ...loc,
-        density: Math.floor(Math.random() * 100) // Random 0-100%
-      })));
-    }, 3000);
-    return () => clearInterval(interval);
+    let simulationInterval = null;
+
+    const unsubscribe = subscribeToAreaDensity((areas) => {
+      const hasRealData = areas.some((a) => a.lastUpdated !== null);
+      setIsFirebaseConnected(hasRealData);
+
+      if (hasRealData) {
+        setLocations(areas);
+        if (simulationInterval) {
+          clearInterval(simulationInterval);
+          simulationInterval = null;
+        }
+      } else {
+        // No real Firebase data yet — run local simulation so the map is still lively
+        if (!simulationInterval) {
+          simulationInterval = setInterval(() => {
+            setLocations((prev) =>
+              prev.map((loc) => ({
+                ...loc,
+                density: Math.floor(Math.random() * 100),
+                userCount: Math.floor(Math.random() * 500),
+              }))
+            );
+          }, 3000);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      if (simulationInterval) clearInterval(simulationInterval);
+    };
   }, []);
 
   const getColor = (d) => {
@@ -247,7 +270,10 @@ function Dash() {
 
       <aside className="Dash-sidebar">
         <div className="Sidebar-header">
-          <p> Live Feed</p>
+          <p>
+            <FaWifi style={{ color: isFirebaseConnected ? "#22c55e" : "#94a3b8", marginRight: 6 }} />
+            {isFirebaseConnected ? "Live Feed" : "Live Feed (demo)"}
+          </p>
         </div>
 
         <div className="Button-Section">
@@ -280,8 +306,18 @@ function Dash() {
             <p>{Math.round(locations.reduce((sum, loc) => sum + loc.density, 0) / locations.length)}%</p>
           </div>
           <div className="Stat-Box">
+            <small>Total Users</small>
+            <p>{locations.reduce((sum, loc) => sum + (loc.userCount || 0), 0)}</p>
+          </div>
+          <div className="Stat-Box">
             <small>Active Nodes</small>
             <p>{locations.length}</p>
+          </div>
+          <div className="Stat-Box">
+            <small>Data Source</small>
+            <p style={{ fontSize: "0.75rem", color: isFirebaseConnected ? "#22c55e" : "#94a3b8" }}>
+              {isFirebaseConnected ? "Firebase" : "Demo"}
+            </p>
           </div>
         </div>
       </aside>
@@ -317,6 +353,7 @@ function Dash() {
                 <Popup>
                   <strong>{loc.name}</strong><br/>
                   Current Crowd: {loc.density}%<br/>
+                  Users: ~{loc.userCount || Math.floor(loc.density * 5)}<br/>
                   Status: {getStatus(loc.density)}
                 </Popup>
               </CircleMarker>

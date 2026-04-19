@@ -12,6 +12,7 @@ import Login from './SCREEN/4-LOGIN/login';
 import ForgotPassword from './SCREEN/6-FORGET/forget';
 import Dash from './SCREEN/7-DASH/dash';
 import ChatBot from './SCREEN/8-CHATBOT/chatbot';
+import Analytics from './SCREEN/9-ANALYTICS/Analytics';
 import Navbar from './SCREEN/NAVBAR/navbar';
 
 // Page Transition Component
@@ -235,6 +236,17 @@ function App() {
                 <ProtectedRoute user={user}>
                   <PageTransition direction={getNavDirection()}>
                     <Dash user={user} />
+                  </PageTransition>
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/analytics" 
+              element={
+                <ProtectedRoute user={user}>
+                  <PageTransition direction={getNavDirection()}>
+                    <Analytics user={user} />
                   </PageTransition>
                 </ProtectedRoute>
               } 
