@@ -70,6 +70,8 @@ function Navbar({ user, onLogout }) {
     // REMOVED: Login button from nav links
     // Show HeatMap only for logged-in NON-GUEST users
     ...(user && !isGuestUser ? [{ path: "/dash", label: "HeatMap" }] : []),
+    // Show Analytics for logged-in NON-GUEST users
+    ...(user && !isGuestUser ? [{ path: "/analytics", label: "Analytics" }] : []),
     // Show ChatBot for all logged-in users (both guest and privileged)
     ...(user ? [{ path: "/chatbot", label: "ChatBot" }] : []),
   ];

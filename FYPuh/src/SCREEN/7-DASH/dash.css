@@ -78,6 +78,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   padding-top: 20px;
+  margin-top: auto;
   border-top: 1px solid #e2e8f0;
 }
 
